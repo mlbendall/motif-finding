@@ -1,0 +1,224 @@
+%% Copyright (c) 2011, Pacific Biosciences of California, Inc.
+
+%% All rights reserved.
+
+%% Redistribution and use in source and binary forms, with or without
+%% modification, are permitted provided that the following conditions are
+%% met: 
+
+%% * Redistributions of source code must retain the above copyright
+%% notice, this list of conditions and the following disclaimer.
+
+%% * Redistributions in binary form must reproduce the above copyright
+%% notice, this list of conditions and the following disclaimer in the
+%% documentation and/or other materials provided with the distribution.
+
+%% * Neither the name of Pacific Biosciences nor the names of its
+%% contributors may be used to endorse or promote products derived from
+%% this software without specific prior written permission.
+
+%% THIS SOFTWARE IS PROVIDED BY PACIFIC BIOSCIENCES AND ITS CONTRIBUTORS
+%% "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+%% LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+%% A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL PACIFIC
+%% BIOSCIENCES OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+%% INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+%% BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+%% OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+%% ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+%% TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+%% USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+%% DAMAGE.
+\documentclass[letterpaper,12pt]{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%% Standard Packages %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\usepackage{epsfig}
+%\usepackage{graphicx}
+%\usepackage{graphics}
+%\usepackage{amssymb}
+%\usepackage{amsmath}
+%\usepackage{fancyvrb}
+%\usepackage{comment}
+%\usepackage{fancyhdr}
+\usepackage{color}
+%\usepackage{amsfonts}
+%\usepackage{float}
+%\usepackage{subfig}
+\usepackage{hyperref}
+
+\usepackage{amsmath}
+\usepackage{amscd}
+\usepackage[tableposition=top]{caption}
+\usepackage{ifthen}
+\usepackage[utf8]{inputenc}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%% Adapted from Sweave %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\DefineVerbatimEnvironment{Rcode}{Verbatim}{fontshape=sl, frame=single, 
+%  framesep=2mm, fontsize=\small, baselinestretch=.5}
+
+%%%%%%%%%%%%%%%%%%%%%%%% Page and Document Setup %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\addtolength{\oddsidemargin}{-0.875in}
+\addtolength{\topmargin}{-0.875in}
+\addtolength{\textwidth}{1.75in}
+\addtolength{\textheight}{1.75in}
+
+%\renewcommand{\topfraction}{0.9}        % max fraction of floats at top
+%\renewcommand{\bottomfraction}{0.8}     % max fraction of floats at bottom
+
+% Parameters for TEXT pages (not float pages):
+%\setcounter{topnumber}{2}
+%\setcounter{bottomnumber}{2}
+%\setcounter{totalnumber}{4}             % 2 may work better
+%\setcounter{dbltopnumber}{2}            % for 2-column pages
+%\renewcommand{\dbltopfraction}{0.9}     % fit big float above 2-col. text
+%\renewcommand{\textfraction}{0.07}      % allow minimal text w. figs
+
+% Parameters for FLOAT pages (not text pages):
+%\renewcommand{\floatpagefraction}{0.7}          % require fuller float pages
+
+% N.B.: floatpagefraction MUST be less than topfraction !!
+%\renewcommand{\dblfloatpagefraction}{0.7}       % require fuller float pages
+
+
+%\def\argmax{\operatornamewithlimits{arg\,max}}
+%\def\argmin{\operatornamewithlimits{arg\,min}}
+
+\definecolor{myblue}{rgb}{0.25, 0, 0.75}
+\definecolor{mygold}{rgb}{1,0.8,0.2}
+\definecolor{gray}{rgb}{0.5, 0.5, 0.5}
+
+\newcommand{\myurl}[1]{\href{http://#1}{\textcolor{gray}{\texttt{#1}}}}
+\newcommand{\myem}[1]{\structure{#1}}
+\newcommand{\myurlshort}[2]{\href{http://#1}{\textcolor{gray}{\textsf{#2}}}}
+
+\newcommand{\RPackage}[1]{\textcolor{gray}{\textsf{#1}}}
+\newcommand{\PL}[1]{\texttt{#1}}
+\newcommand{\RCode}[1]{\texttt{#1}}
+\newcommand{\RFunction}[1]{\textsf{#1}}
+\newcommand{\RClass}[1]{\textcolor{mygold}{\textsf{#1}}}
+\newcommand{\BIOCfunction}[1]{\textcolor{orange}{#1}}
+
+%%%%%%%%%%%%%%%%%%%%%%% options for sweave %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\SweaveOpts{prefix.string=plots/plots, eps=FALSE, echo=FALSE}
+
+%\documentclass{article}
+
+
+\begin{document}
+
+\title{A Modification Motif Analysis Demo}
+\author{Pat Marks}
+\maketitle
+
+This is a demo for analyzing the modification detections from the Modification Detection module.
+Start by loading the raw modifications calls from \verb@data/modifications.gff@
+
+We install some packages from bioconductor:
+<<init>>=
+# Uncomment to install 'cosmo' package from bioconductor
+source("http://bioconductor.org/biocLite.R")
+biocLite("cosmo")
+biocLite("rtracklayer")
+@
+
+We start by loading some utilities:
+<<libs>>=
+library(ggplot2)
+library(rtracklayer)
+library(cosmo)
+@
+
+Notes about where to get the gff file from. Either from the SMRTportal job data location, or download the modifications.gff.gz from the SMRTportal job page.
+The we load the gff file. The context field contains a 41 base context centered around  the detected modification -- pull out the center base. The context field contains a 41 base context centered around the detected modification. We  pull out the center base. Look at the summary of the detected hits. For confident m6A detection you want coverages in the 15-20x (per strand) and above.
+Talk about the meanings of the columns from the GFF file.
+<<gff>>=
+# Load GFF file
+gffFile <- '/mnt/secondary/Smrtanalysis/userdata/jobs/039/039294/data/modifications.gff.gz'
+hits <- as.data.frame(import.gff3(gffFile))
+hits$CognateBase <- substr(hits$context, 21, 21)
+summary(hits)
+@
+
+
+Plot the confidence scores and coverages to get a sense of what hits are significant. Figure~\ref{fig:pp1}
+
+Make a histogram of the scores of the GFF entries, coloured by Cognate base.  This will give you a sense of 
+how strong your signals are and whether the strongest signals are enriched on any base.
+\begin{figure}
+\begin{center}
+<<label=pp1,fig=TRUE,echo=TRUE>>=
+p <- qplot(score, colour=CognateBase, geom='freqpoly', data=hits)
+show(p)
+@
+\end{center}
+\caption{Modification Scores by cognate base}
+\label{fig:pp1}
+\end{figure}
+
+
+\begin{figure}
+\begin{center}
+<<label=pp2,fig=TRUE,echo=TRUE>>=
+p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hits)
+show(p)
+@
+\end{center}
+\caption{Score vs. Coverage}
+\label{fig:pp2}
+\end{figure}
+
+
+You should see more high-scoring hits from the bases you expect to see methylated in your sample. This histogram can help you select a good filter for your hits. We'll pick a score threshold of 100. We sort the hits so we look at the most confident hits first.
+
+<<filter>>=
+goodHits <- subset(hits, score > 100)
+goodHits <- goodHits[order(goodHits$score, decreasing=T),]
+workHits <- goodHits
+@
+
+Convert the context snippets into a cosmo compatible format. Pick a small selection of hits (cosmo will die if you provide too many at once). Feed the contexts to cosmo, look at the resulting logo plot. We found 'CTAT', starting at position 21-2 = 19
+
+<<motif>>=
+sequenceList <- llply(workHits$context, function(x) list(seq=as.character(x), desc=''))
+smallHitList <- sequenceList[1:200]
+
+cc2 <- cosmo(seqs=smallHitList,minW=4, maxW=10, revComp=F, silent=T)
+
+motif <- 'CTATG'
+position <- 19
+@
+
+
+View the logo plot (Figure~\ref{fig:logo})
+
+\begin{figure}
+\begin{center}
+<<label=logo,fig=TRUE,echo=TRUE>>=
+plot(cc2)
+@
+\end{center}
+\caption{Logo plot}
+\label{fig:logo}
+\end{figure}
+
+We found 'CTAT', starting at position 21-2 = 19. Pull out the -2 to +1 context window from the hits contexts. How many hits do we get with this motif. Roughly how many would we expect if everything was methylated in a random genome. We see the correct number of hits!  We are now done with 'CTATG'. Remove the 'CTATG' hits from working list and try again. We still haev lots of unidentified motifs
+
+<<motif>>=
+motif <- 'CTATG'
+position <- 19
+snip <- substr(workHits$context, position, position + nchar(motif) - 1)
+observedHits <- sum(motif == snip)
+observedHits
+genomeSize <- max(hits$end)
+expectedHits <- genomeSize / (4^nchar(motif))
+expectedHits
+workHits <- workHits[snip != motif,]
+nrow(workHits)
+@
+
+
+Not clear what's happening now -- we probably have a mixture of motifs in similar proportion which will confuse cosmo.  Continue on by hand, or wait for the fancy new motif finder!
+
+
+\end{document}
