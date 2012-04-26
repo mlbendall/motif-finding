@@ -86,6 +86,8 @@
 
 \definecolor{myblue}{rgb}{0.25, 0, 0.75}
 \definecolor{mygold}{rgb}{1,0.8,0.2}
+
+
 \definecolor{gray}{rgb}{0.5, 0.5, 0.5}
 
 \newcommand{\myurl}[1]{\href{http://#1}{\textcolor{gray}{\texttt{#1}}}}
