@@ -113,33 +113,43 @@
 \author{Pat Marks}
 \maketitle
 
+\section {Getting started}
 This is a demo for analyzing the modification detections from the Modification Detection module.
 Start by loading the raw modifications calls from \verb@data/modifications.gff@
 
 We install some packages from bioconductor:
 <<init>>=
 # Uncomment to install 'cosmo' package from bioconductor
-source("http://bioconductor.org/biocLite.R")
-biocLite("cosmo")
-biocLite("rtracklayer")
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("cosmo")
+#biocLite("rtracklayer")
 @
 
 We start by loading some utilities:
 <<libs>>=
 library(ggplot2)
-library(rtracklayer)
 library(cosmo)
+source('scripts.R')
 @
 
 Notes about where to get the gff file from. Either from the SMRTportal job data location, or download the modifications.gff.gz from the SMRTportal job page.
+
+\section{Kinetic Data QC}
+
 The we load the gff file. The context field contains a 41 base context centered around  the detected modification -- pull out the center base. The context field contains a 41 base context centered around the detected modification. We  pull out the center base. Look at the summary of the detected hits. For confident m6A detection you want coverages in the 15-20x (per strand) and above.
 Talk about the meanings of the columns from the GFF file.
 <<gff>>=
 # Load GFF file
-gffFile <- '/mnt/secondary/Smrtanalysis/userdata/jobs/039/039294/data/modifications.gff.gz'
-hits <- as.data.frame(import.gff3(gffFile))
+gffFile <- '/mnt/secondary/Smrtanalysis/userdata/jobs/040/040041/data/modifications.gff.gz'
+hits <- readModificationsGff(gffFile)
+
+
 hits$CognateBase <- substr(hits$context, 21, 21)
 summary(hits)
+
+# Subset the hits for faster plotting
+hitsSubset <- hits[sample(nrow(hits), min(nrow(hits), 50000)), ]
+
 @
 
 
@@ -162,7 +172,7 @@ show(p)
 \begin{figure}
 \begin{center}
 <<label=pp2,fig=TRUE,echo=TRUE>>=
-p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hits)
+p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hitsSubset)
 show(p)
 @
 \end{center}
@@ -174,10 +184,12 @@ show(p)
 You should see more high-scoring hits from the bases you expect to see methylated in your sample. This histogram can help you select a good filter for your hits. We'll pick a score threshold of 100. We sort the hits so we look at the most confident hits first.
 
 <<filter>>=
-goodHits <- subset(hits, score > 100)
+goodHits <- subset(hits, score > 70)
 goodHits <- goodHits[order(goodHits$score, decreasing=T),]
 workHits <- goodHits
 @
+
+\section{Motif Finding}
 
 Convert the context snippets into a cosmo compatible format. Pick a small selection of hits (cosmo will die if you provide too many at once). Feed the contexts to cosmo, look at the resulting logo plot. We found 'CTAT', starting at position 21-2 = 19
 
@@ -219,8 +231,34 @@ workHits <- workHits[snip != motif,]
 nrow(workHits)
 @
 
-
 Not clear what's happening now -- we probably have a mixture of motifs in similar proportion which will confuse cosmo.  Continue on by hand, or wait for the fancy new motif finder!
+
+
+\section{Genome Annotation}
+We can load the genome sequence and annotate it instances of each motif, to determine the genome-wide methylation fraction of our motifs.
+
+<<annotate>>=
+# Load the genome sequence
+seq_path <- '/mnt/secondary/Smrtanalysis/userdata/references/ecoli/sequence/ecoli.fasta'
+dna_seq <- read.DNAStringSet(seq_path)
+
+motifs = c('GATC', 'GCACNNNNNNGTT', 'AACNNNNNNGTGC')
+positions = c(2, 3, 2)
+
+motifAnnotations <- annotationDf(dna_seq, motifs, positions)
+head(motifAnnotations)
+
+table(motifAnnotations$mod, motifAnnotations$strand)
+@
+
+
+\section{Appendix}
+
+\PL{R} can be downloaded for Linux, Mac and Windows from \myurl{http://r-project.org}
+We also recommend the graphical front-end \PL{RStudio}, available from \myurl{rstudio.org}
+
+The following R packages need to be installed to run through this demo.
+\RPackage{ggplot2} (available on CRAN), \RPackage{cosmo}, \RPackage{Biostrings} (available on Bioconductor)
 
 
 \end{document}
