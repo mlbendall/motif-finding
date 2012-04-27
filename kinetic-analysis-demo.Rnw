@@ -114,8 +114,8 @@
 \maketitle
 
 \section {Getting started}
-This is a demo for analyzing the modification detections from the Modification Detection module.
-Start by loading the raw modifications calls from \verb@data/modifications.gff@
+We demonstrate a typical analysis of kinetic modification detection data on a bacterial genome.  The main steps in the analysis are: load and quality check the modification calls, find commonly methylated sequence motifs, and find the motifs in the genome sequence. 
+
 
 We install some packages from bioconductor:
 <<init>>=
@@ -128,35 +128,59 @@ We install some packages from bioconductor:
 We start by loading some utilities:
 <<libs>>=
 library(ggplot2)
+library(plyr)
+library(Biostrings)
 library(cosmo)
 source('scripts.R')
 @
 
-Notes about where to get the gff file from. Either from the SMRTportal job data location, or download the modifications.gff.gz from the SMRTportal job page.
 
-\section{Kinetic Data QC}
+\section{Loading modification data}
 
-The we load the gff file. The context field contains a 41 base context centered around  the detected modification -- pull out the center base. The context field contains a 41 base context centered around the detected modification. We  pull out the center base. Look at the summary of the detected hits. For confident m6A detection you want coverages in the 15-20x (per strand) and above.
-Talk about the meanings of the columns from the GFF file.
+We start by loading the raw modifications calls from that are produced by SMRTPortal in \verb@modifications.gff.gz@. This can be downloaded from the job results page in SMRTPortal, or accessed directly from the SMRTportal job folder on the file server.  The included \PL{R} script contains a \PL{GFF} file reader that extracts some extra atrribute columns used by the modification detection tool. Take a look at the data contained in the \PL{GFF} file. The context field contains a 41 base context centered around  the detected modification -- we pull out the center base (position 21). Look at the summary of the detected hits. Confident m6A detection requires coverage >20x (per strand). See 
+
+
 <<gff>>=
 # Load GFF file
 gffFile <- '/mnt/secondary/Smrtanalysis/userdata/jobs/040/040041/data/modifications.gff.gz'
 hits <- readModificationsGff(gffFile)
-
+head(hits)
 
 hits$CognateBase <- substr(hits$context, 21, 21)
 summary(hits)
 
 # Subset the hits for faster plotting
-hitsSubset <- hits[sample(nrow(hits), min(nrow(hits), 50000)), ]
-
+hitsSubset <- hits[sample(nrow(hits), min(nrow(hits), 50e3)),]
 @
 
 
-Plot the confidence scores and coverages to get a sense of what hits are significant. Figure~\ref{fig:pp1}
+\begin{table}[ht]
+\begin{center}
+\begin{tabular}{ll}
+\hline
+Column & Description \\
+\hline
+seqid  &  	Reference tag (e.g. ref00001) \\
+source	&	  Name of tool -- 'kinModCall' \\
+type    &   Modification type -- currently we use a generic tag "modified\_base" \\
+start   &   Location of modification \\
+end     &   Location of modification plus one \\
+score   &   Phred transformed p-value of detection \\
+strand  &   Sample strand containing modification \\
+phase   &   Not applicable \\
+\hline
+attributes &  Fields below are packed in the \PL{GFF} attributes column \\
+IPDRatio & Ratio between IPD of observed IPD to IPD of unmodified DNA (from control sample or in-silico reference) \\
+context &  Reference sequence -20bp to +20bp around start, converted to current strand \\
+coverage & Number of valid IPD observations at this site \\
+\hline
+\end{tabular}
+\caption{Contents of modifications.gff.gz file}
+\end{center}
+\end{table}
 
-Make a histogram of the scores of the GFF entries, coloured by Cognate base.  This will give you a sense of 
-how strong your signals are and whether the strongest signals are enriched on any base.
+We now make some plots from the \PL{GFF} data to assess the quality and type of the modification calls. Figure~\ref{fig:pp1} shows a histogram of the scores of the GFF entries, coloured by the cognate base.  This will give you a sense of how strong your signals are and whether the strongest signals are enriched on any base. For our E.Coli test genome the predominant modification is 6-methyl adenosine, so most of the significant modification detections are at A positions.
+
 \begin{figure}
 \begin{center}
 <<label=pp1,fig=TRUE,echo=TRUE>>=
@@ -181,17 +205,17 @@ show(p)
 \end{figure}
 
 
-You should see more high-scoring hits from the bases you expect to see methylated in your sample. This histogram can help you select a good filter for your hits. We'll pick a score threshold of 100. We sort the hits so we look at the most confident hits first.
+The histogram in Figure~\ref{fig:pp1} indicates that the interesting A bases have a score cutoff of roughly 45.  We select these hits, then sort in decreasing order of score, so we consider the strongest signal first.
 
 <<filter>>=
-goodHits <- subset(hits, score > 70)
+goodHits <- subset(hits, score > 45)
 goodHits <- goodHits[order(goodHits$score, decreasing=T),]
 workHits <- goodHits
 @
 
 \section{Motif Finding}
 
-Convert the context snippets into a cosmo compatible format. Pick a small selection of hits (cosmo will die if you provide too many at once). Feed the contexts to cosmo, look at the resulting logo plot. We found 'CTAT', starting at position 21-2 = 19
+We use the motif finding package \PL{cosmo} (\myurl{http://www.bioconductor.org/packages/release/bioc/html/cosmo.html}) to search for conserved motifs in the DNA sequences surrounding our modification detections.  First, we convert the context snippets into a cosmo compatible format. Next, we select a small number of hits to pass to \PL{cosmo} (it will not return if you provide too many at once). We feed the contexts to cosmo, then look at the resulting logo plot. We found 'GATC', starting at position 21-2 = 19
 
 <<motif>>=
 sequenceList <- llply(workHits$context, function(x) list(seq=as.character(x), desc=''))
@@ -199,10 +223,9 @@ smallHitList <- sequenceList[1:200]
 
 cc2 <- cosmo(seqs=smallHitList,minW=4, maxW=10, revComp=F, silent=T)
 
-motif <- 'CTATG'
-position <- 19
+motif <- 'GATC'
+position <- 20
 @
-
 
 View the logo plot (Figure~\ref{fig:logo})
 
@@ -216,11 +239,11 @@ plot(cc2)
 \label{fig:logo}
 \end{figure}
 
-We found 'CTAT', starting at position 21-2 = 19. Pull out the -2 to +1 context window from the hits contexts. How many hits do we get with this motif. Roughly how many would we expect if everything was methylated in a random genome. We see the correct number of hits!  We are now done with 'CTATG'. Remove the 'CTATG' hits from working list and try again. We still haev lots of unidentified motifs
+We found 'GATC', starting at position 21-1 = 20. Pull out the -2 to +1 context window from the hits contexts. How many hits do we get with this motif. Roughly how many would we expect if everything was methylated in a random genome. We see the correct number of hits!  We are now done with 'CTATG'. Remove the 'CTATG' hits from working list and try again. We still haev lots of unidentified motifs
 
 <<motif>>=
-motif <- 'CTATG'
-position <- 19
+motif <- 'GATC'
+position <- 20
 snip <- substr(workHits$context, position, position + nchar(motif) - 1)
 observedHits <- sum(motif == snip)
 observedHits
@@ -248,7 +271,7 @@ positions = c(2, 3, 2)
 motifAnnotations <- annotationDf(dna_seq, motifs, positions)
 head(motifAnnotations)
 
-table(motifAnnotations$mod, motifAnnotations$strand)
+table(motifAnnotations$mod)
 @
 
 

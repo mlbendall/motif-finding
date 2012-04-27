@@ -38,7 +38,9 @@ readModificationsGff <- function(gffFile, nrows=-1)
   gffData <- gffRead(gffFile, nrows)
   gffData$coverage <- as.numeric(getAttributeField(gffData$attributes, 'coverage'))
   gffData$context <- as.character(getAttributeField(gffData$attributes, 'context'))
-  gffData$IPDRatio <- as.numeric(getAttributeField(gffData$attributes, 'IPDRatio'))
+  gffData$IPDRatio <- as.numeric(getAttributeField(gffData$attributes, 'IPDRatio'))  
+  gffData$attributes <- NULL
+  
   gffData
 }
 
@@ -109,8 +111,7 @@ annotationDf <- function(dna_seq, motifs, positions, offsets=c(0))
         if(abs(o) > 0)
           onTarget <- 'Off'
         
-        
-        fwdDf <- as.data.frame(match_fwd)
+        fwdDf <- data.frame(start=start(match_fwd))
         if(nrow(fwdDf) > 0)
         {
           fwdDf$contigId <- ref
@@ -123,8 +124,8 @@ annotationDf <- function(dna_seq, motifs, positions, offsets=c(0))
           df <- rbind(df, fwdDf)
         }
         
-        revDf <- as.data.frame(match_rev)
-        if(nrow(revDf) > 0)
+       revDf <- data.frame(start=start(match_rev))        
+       if(nrow(revDf) > 0)
         {
           revDf$contigId <- ref
           #revDf$contig <- names(dna_seq)[[ref]]
