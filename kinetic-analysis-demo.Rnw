@@ -196,7 +196,7 @@ show(p)
 \begin{figure}
 \begin{center}
 <<label=pp2,fig=TRUE,echo=TRUE>>=
-p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hits)
+p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hits[1:10000,])
 show(p)
 @
 \end{center}
