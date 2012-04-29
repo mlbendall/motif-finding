@@ -81,7 +81,7 @@ labelContexts <- function(contextStrings, motifs, motifSites, labels=motifs)
 # peak at the metylated position, offset=-5 is the normal position of the 
 # secondary peak for m6A.  If there are Ns in the motif tb.end must be set 
 # to the end of the first block of non-Ns
-annotationDf <- function(dna_seq, motifs, positions, offsets=c(0))
+genomeAnnotation <- function(dna_seq, motifs, positions, offsets=c(0))
 {
   df <- data.frame()
   dna_seq_rc <- reverseComplement(dna_seq)
@@ -114,12 +114,12 @@ annotationDf <- function(dna_seq, motifs, positions, offsets=c(0))
         fwdDf <- data.frame(start=start(match_fwd))
         if(nrow(fwdDf) > 0)
         {
-          fwdDf$contigId <- ref
+          fwdDf$seqid <- ref
           #fwdDf$contig <- names(dna_seq)[[ref]]
           
-          fwdDf$strand <- 0
-          fwdDf$tpl <- fwdDf$start + methPos - 1 + o
-          fwdDf$mod <- modName
+          fwdDf$strand <- '+'
+          fwdDf$start <- fwdDf$start + methPos - 1 + o
+          fwdDf$motif <- modName
           fwdDf$onTarget <- onTarget  
           df <- rbind(df, fwdDf)
         }
@@ -127,12 +127,12 @@ annotationDf <- function(dna_seq, motifs, positions, offsets=c(0))
        revDf <- data.frame(start=start(match_rev))        
        if(nrow(revDf) > 0)
         {
-          revDf$contigId <- ref
+          revDf$seqid <- ref
           #revDf$contig <- names(dna_seq)[[ref]]
           
-          revDf$strand <- 1
-          revDf$tpl <- length(dna_seq[[1]]) + 1 - (revDf$start + methPos - 1 + o)
-          revDf$mod <- modName
+          revDf$strand <- '-'
+          revDf$start <- length(dna_seq[[1]]) + 1 - (revDf$start + methPos - 1 + o)
+          revDf$motif <- modName
           revDf$onTarget <- onTarget
           df <- rbind(df, revDf)
         }
@@ -140,7 +140,7 @@ annotationDf <- function(dna_seq, motifs, positions, offsets=c(0))
     }
   }
   
-  df <- df[,c('strand', 'tpl', 'mod',  'onTarget', 'contigId')]
+  df <- df[,c('strand', 'start', 'motif',  'onTarget', 'seqid')]
   return(df)
 }
 

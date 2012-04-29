@@ -170,7 +170,7 @@ strand  &   Sample strand containing modification \\
 phase   &   Not applicable \\
 \hline
 attributes &  Fields below are packed in the \PL{GFF} attributes column \\
-IPDRatio & Ratio between IPD of observed IPD to IPD of unmodified DNA (from control sample or in-silico reference) \\
+IPDRatio & Ratio between IPD of observed IPD to IPD of unmodified DNA \\
 context &  Reference sequence -20bp to +20bp around start, converted to current strand \\
 coverage & Number of valid IPD observations at this site \\
 \hline
@@ -254,11 +254,13 @@ workHits <- workHits[snip != motif,]
 nrow(workHits)
 @
 
-Not clear what's happening now -- we probably have a mixture of motifs in similar proportion which will confuse cosmo.  Continue on by hand, or wait for the fancy new motif finder!
+Not clear what's happening now -- we probably have a mixture of motifs in similar proportion which will confuse cosmo.  Continue on by hand, or wait for the fancy new motif finder! 
+Now imagine we have identified our motifs and we want to label 
+
 
 
 \section{Genome Annotation}
-We can load the genome sequence and annotate it instances of each motif, to determine the genome-wide methylation fraction of our motifs.
+We can load the genome sequence and annotate it instances of each motif, to determine the genome-wide methylation fraction of our motifs. The \RFunction{genomeAnnotation} function returns a \PL{data.frame} containing one row for each match in the supplied genome of each motif supplied. Genome positions can match multiple motifs, which gives multiples row at the same genome position
 
 <<annotate>>=
 # Load the genome sequence
@@ -268,11 +270,34 @@ dna_seq <- read.DNAStringSet(seq_path)
 motifs = c('GATC', 'GCACNNNNNNGTT', 'AACNNNNNNGTGC')
 positions = c(2, 3, 2)
 
-motifAnnotations <- annotationDf(dna_seq, motifs, positions)
-head(motifAnnotations)
+genomeAnnotations <- genomeAnnotation(dna_seq, motifs, positions)
+head(genomeAnnotations)
 
-table(motifAnnotations$mod)
+table(genomeAnnotations$motif)
 @
+
+We merge the \RFunction{genomeAnnotation} output with our \PL{GFF} data.frame to count the number of motif instances that exist in the genome and the number that were detected as methylated. We merge the genomeAnnotation and goodHits tables by genome position and strand, with \RCode{all=T} to include GFF hits that are not annotated with a motif, and genome motif instances that do not have a GFF hit. We adjust the merged data.frame to indicate these cases.
+
+<<merge>>=
+goodHits$seqid <- as.integer(substr(goodHits$seqname, 4,11))
+mm <- merge(goodHits, genomeAnnotations, all=T)
+mm$motif[is.na(mm$motif)] <- 'NoMotif' 
+mm$feature[is.na(mm$feature)] <- 'not_detected' 
+table(mm$feature, mm$motif)
+@
+
+In our goodHits table we have 3032 'modified\_base' calls that do not occur at an annotated genome position.  For genome positions matching the GATC motif, 37728 were present detected ('modified\_base') and 512 were not ('not\_detected'). We can assess whether we are likely to have missed any methylated motifs by comparing the score distributions for the positions matching a motif to the 'NoMotif' set, as in Figure~\ref{fig:scoreByMotif}.
+
+\begin{figure}
+\begin{center}
+<<label=scoreByMotif,fig=TRUE,echo=TRUE>>=
+p <- qplot(score, ..density.., colour=motif, geom='freqpoly', data=subset(mm, feature=='modified_base'), binwidth=3, xlim=c(0,200))
+show(p)
+@
+\end{center}
+\caption{Score distribution by motif annotation}
+\label{fig:scoreByMotif}
+\end{figure}
 
 
 \section{Appendix}
