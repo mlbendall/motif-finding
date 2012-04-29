@@ -57,7 +57,7 @@ readModificationsGff <- function(gffFile, nrows=-1)
 # motifSites is the index of the modified position in the motif
 # labels is an optional label to apply - by default the string of the matching 
 # motif will be used
-labelContexts <- function(contextStrings, motifs, motifSites, labels=motifs)
+labelContexts <- function(contextStrings, motifs, motifSites, labels=motifs, contextStringCenter=21)
 {
   labelVect <- character(length(contextStrings))
   labelVect[1:length(contextStrings)] <- 'None'
@@ -66,7 +66,7 @@ labelContexts <- function(contextStrings, motifs, motifSites, labels=motifs)
   {
     isHit <- as.vector(isMatchingAt(motifs[m], 
                                     DNAStringSet(as.character(contextStrings)), 
-                                    at=22-motifSites[m],  
+                                    at=contextStringCenter + 1 -motifSites[m],  
                                     fixed=F))
     labelVect[isHit] <- motifs[m]
   }
