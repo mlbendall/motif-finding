@@ -206,7 +206,7 @@ show(p)
 \end{figure}
 
 
-The histogram in Figure~\ref{fig:pp1} indicates that the interesting A bases have a score cutoff of roughly 45.  We select these hits, then sort in decreasing order of score, so we consider the strongest signal first.
+The histogram in Figure~\ref{fig:pp1} indicates that the interesting A bases have a score cutoff of roughly 45.  We select these hits, then sort in decreasing order of score, so we consider the strongest signal first. Figure~\ref{fig:pp2} also suggests that cutting on a linear relationship between score and coverage may also yield good dscrimination.
 
 <<filter>>=
 goodHits <- subset(hits, score > 45)
@@ -295,8 +295,6 @@ Here we load the \PL{CSV} file, and merge it with the genomeAnnotations table, k
 
 <<csv>>=
 # Load CSV file
-if(F)
-  {
 csv <- '/mnt/secondary/Smrtanalysis/userdata/jobs/040/040041/data/modifications.csv.gz'
 rawKin <- read.csv(csv)
 
@@ -308,18 +306,17 @@ table(mga$motif, mga$score > 45)
 
 colsToShow <- c('start', 'strand', 'motif', 'score', 'coverage', 'ipdRatio')
 subset(mga, score < 10 & motif=='GATC')[,colsToShow]
-  }
 @
 
 \begin{figure}
 \begin{center}
 <<label=lowScores,fig=TRUE,echo=TRUE>>=
-#p <- qplot(score, ..density.., colour=motif,
-#           log='y', data=mga, 
-#           geom='freqpoly', xlim=c(0,100), binwidth=1)
-#show(p)
-p<-qplot(1,1)
+p <- qplot(score, ..density.., colour=motif,
+           log='y', data=mga, 
+           geom='freqpoly', xlim=c(0,100), binwidth=1)
 show(p)
+#p<-qplot(1,1)
+#show(p)
 @
 \end{center}
 \caption{Score distribution of motif sites}
