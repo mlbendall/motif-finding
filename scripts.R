@@ -131,7 +131,7 @@ genomeAnnotation <- function(dna_seq, motifs, positions, offsets=c(0))
           #revDf$contig <- names(dna_seq)[[ref]]
           
           revDf$strand <- '-'
-          revDf$start <- length(dna_seq[[1]]) + 1 - (revDf$start + methPos - 1 + o)
+          revDf$start <- length(dna_seq[[ref]]) + 1 - (revDf$start + methPos - 1 + o)
           revDf$motif <- modName
           revDf$onTarget <- onTarget
           df <- rbind(df, revDf)
@@ -142,5 +142,13 @@ genomeAnnotation <- function(dna_seq, motifs, positions, offsets=c(0))
   
   df <- df[,c('strand', 'start', 'motif',  'onTarget', 'seqid')]
   return(df)
+}
+
+# Write the contextStrings to a FASTA file
+writeContextFasta <- function(contextStrings, filename)
+{
+  stringSet <- DNAStringSet(contextStrings)
+  names(stringSet) <- 1:length(contextStrings)
+  write.XStringSet(stringSet, filename)
 }
 

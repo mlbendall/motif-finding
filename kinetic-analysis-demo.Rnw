@@ -140,7 +140,7 @@ source('scripts.R')
 
 \section{Loading modification data}
 
-We start by loading the raw modifications calls from that are produced by SMRTPortal in \verb@modifications.gff.gz@. This can be downloaded from the job results page in SMRTPortal, or accessed directly from the SMRTportal job folder on the file server.  \verb@modifications.gff.gz@ is compliant with \PL{GFFv3} specification (\href{http://www.sequenceontology.org/gff3.shtml}[www.sequenceontology.org]). See Table~\ref{table:gff} for a description of the columns in the \PL{GFF} file. 
+We start by loading the raw modifications calls from that are produced by SMRTPortal in \verb@modifications.gff.gz@. This can be downloaded from the job results page in SMRTPortal, or accessed directly from the SMRTportal job folder on the file server.  \verb@modifications.gff.gz@ is compliant with \PL{GFFv3} specification (\href{http://www.sequenceontology.org/gff3.shtml}[www.sequenceontology.org]). See Table~\ref{gff} for a description of the columns in the \PL{GFF} file. 
 
 \begin{table}[ht]
 \begin{center}
@@ -165,7 +165,7 @@ coverage & Number of valid IPD observations at this site \\
 \end{tabular}
 \caption{Contents of modifications.gff.gz file}
 \end{center}
-\label{table:gff}
+\label{gff}
 \end{table}
 
 The included \PL{R} script contains a \PL{GFF} file reader that extracts some extra atrribute columns used by the modification detection tool. Take a look at the data contained in the \PL{GFF} file. The context field contains a 41 base context centered around  the detected modification -- pull out the center base (position 21). Summarize the \RCode{coverage} column of the \PL{GFF} to see how many reads contribute to each modification call. Confident m6A detection generally requires coverage $>20$ per strand.
@@ -196,7 +196,8 @@ show(p)
 \begin{figure}
 \begin{center}
 <<label=pp2,fig=TRUE,echo=TRUE>>=
-p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hits[1:10000,])
+p <- qplot(coverage, score, colour=CognateBase, alpha=I(0.3), data=hits[1:10000,]) +
+  geom_abline(slope=0.9) + geom_vline(x=25)
 show(p)
 @
 \end{center}
@@ -213,32 +214,17 @@ goodHits <- goodHits[order(goodHits$score, decreasing=T),]
 workHits <- goodHits
 @
 
-\section{Motif Finding}
+\section{MEMEChip Motif Finding}
 
-We use the motif finding package \PL{cosmo} (\myurl{http://www.bioconductor.org/packages/release/bioc/html/cosmo.html}) to search for conserved motifs in the DNA sequences surrounding our modification detections.  First, we convert the context snippets into a cosmo compatible format. Next, we select a small number of hits to pass to \PL{cosmo} (it will not return if you provide too many at once). We feed the contexts to cosmo, then look at the resulting logo plot (Figure~\ref{fig:logo1}. The 'GATC' motif is strongly detected. \RPackage{cosmo} searches for motifs anywhere within the supplied sequences. In our case the motif is always appears at the same position within sequence windows we supplied. The motifs hits detected by cosmo should therefore have the same starting position.  We check for this by examining \RCode{table(cosmoOut@motifs@pos)}. Clearly the mode is at position 15. The A in the GATC motif occurs at position 7 in the cosmo motif, which corresponds to $15 + 7 - 1 = 21$, the center, cognate base of the sequences we passed to \RPackage{cosmo}
+We use the online motif finding server 'MEMEChip' (\myurl{http://meme.sdsc.edu/meme/cgi-bin/meme-chip.cgi}). The MEMEChip server requires the source sequences to uploaded in \PL{FASTA} format. We write the context string of the top 1000 hits to 'contexts.fasta'. Fill in blurb about how to use the web server.
 
-<<motif>>=
-sequenceList <- llply(workHits$context[1:200], function(x) list(seq=as.character(x), desc=''))
-cosmoOut <- cosmo(seqs=sequenceList,minW=4, maxW=10, revComp=F, silent=T)
-
-table(cosmoOut@motifs@pos)
-startPos <- 15 + 7 - 1
-startPos
+<<writeFasta>>=
+writeContextFasta(workHits$context[1:1000], 'contexts.fasta')
 @
 
-We view the logo plot of the motif found (Figure~\ref{fig:logo})
 
-\begin{figure}
-\begin{center}
-<<label=logo1,fig=TRUE,echo=TRUE>>=
-plot(cosmoOut)
-@
-\end{center}
-\caption{Logo plot - First \RPackage{cosmo} iteration}
-\label{fig:logo1}
-\end{figure}
+As we get motif results from MEMEChip, we can check which hits match each motif using the \RCode{labelContexts} function. The \RCode{labelContexts} takes a charactervector of context strings, and a vector of motif strings and their associated methlyated positions. We make a rough approximation of the number of GATC sites we would expect on both stands of a random genome of length $|G|$ as $2|G|/4^n$ where $n$ is the number of bases in the motif.  We see that most GATC are methylated. We will perform a more accurate analysis in the next section. We can now remove the 'GATC' hits from working list. We still have many of unassigned GFF hits, so we can run MEMEChip on the reduced list of hits.
 
-We can check which hits match this context using the \RCode{labelContexts} function and see how many GATC hits we have. The \RCode{labelContexts} takes a charactervector of context strings, and a vector of motif strings and their associated methlyated positions. We make a rough approximation of the number of GATC sites we would expect on both stands of a random genome of length $|G|$ as $2|G|/4^n$ where $n$ is the number of bases in the motif.  We see that most GATC are methylated. We will perform a more accurate analysis in the next section. We can now remove the 'GATC' hits from working list. We still have many of unassigned GFF hits, so we can run \RPackage{cosmo} on the reduced list of hits.
 
 <<motif>>=
 motif <- 'GATC'
@@ -255,34 +241,7 @@ workHits <- workHits[motifLabels != motif,]
 nrow(workHits)
 @
 
-We now run \RPackage{cosmo} on the remaining:
-<<cosmo2>>=
-sequenceList <- llply(workHits$context[1:200], function(x) list(seq=as.character(x), desc=''))
-cosmoOut2 <- cosmo(seqs=sequenceList,minW=4, maxW=10, revComp=F, silent=T)
-
-motif <- 'ACNNNNNNGT'
-position <- 1
-motifLabels <- labelContexts(workHits$context, motif, position)
-
-table(motifLabels)
-
-genomeSize <- max(hits$end)
-expectedHits <- 2 * genomeSize / (4^4) 
-expectedHits
-@
-
-\begin{figure}
-\begin{center}
-<<label=logo2,fig=TRUE,echo=TRUE>>=
-plot(cosmoOut2)
-@
-\end{center}
-\caption{Logo plot: Second \RPackage{cosmo} iteration}
-\label{fig:logo2}
-\end{figure}
-
-
-Figure~\ref{fig:logo2} shows the logo plot of the second \RPackage{cosmo} run. It's unclear what's happening now. We have found a highly confident 4 base motif but we observe far less than the expected number. In fact our E.Coli sample contains a pair of methyltransferases that methylate reverse-complementary motifs that share a common 4 base sub-motif. These two motifs occur in equal numbers.  \RPackage{cosmo} was not designed to handle situation like this, so we must continue on by hand, inspecting the hits manually.  Hand inspection of the hits shows that 'GATC', 'GCACNNNNNNGTT', 'AACNNNNNNGTGC' are the fully methylated motifs in our sample.
+In fact our E.Coli sample contains a pair of methyltransferases that methylate reverse-complementary motifs that share a common 4 base sub-motif. These two motifs occur in equal numbers.  \RPackage{cosmo} was not designed to handle situation like this, so we must continue on by hand, inspecting the hits manually.  Hand inspection of the hits shows that 'GATC', 'GCACNNNNNNGTT', 'AACNNNNNNGTGC' are the fully methylated motifs in our sample.
 
 \section{Genome Annotation}
 We can load the genome sequence and annotate it instances of each motif, to determine the genome-wide methylation fraction of our motifs. The \RFunction{genomeAnnotation} function returns a \PL{data.frame} containing one row for each match in the supplied genome of each motif supplied. Genome positions can match multiple motifs, which gives multiples row at the same genome position
@@ -316,13 +275,58 @@ In our goodHits table we have 3032 'modified\_base' calls that do not occur at a
 \begin{figure}
 \begin{center}
 <<label=scoreByMotif,fig=TRUE,echo=TRUE>>=
-p <- qplot(score, ..density.., colour=motif, geom='freqpoly', data=subset(mm, feature=='modified_base'), binwidth=3, xlim=c(0,200))
+p <- qplot(score, ..density.., 
+           colour=motif, geom='freqpoly', 
+           data=subset(mm, feature=='modified_base'), 
+           binwidth=3, xlim=c(0,200))
 show(p)
 @
 \end{center}
 \caption{Score distribution by motif annotation}
 \label{fig:scoreByMotif}
 \end{figure}
+
+
+\section{Unmethylated Sites}
+Our comparison of the genome annotation and the detected methylations reveals that there are a small number of GATC sites in the genome
+that were not detected as methylated at our score cutoff of 45. We may be interested in looking in more detail at the kinetic evidence of the undetected GATC sites to determine whether these sites are false negatives caused by our analysis, or are truly unmethylated in the organism.  The \PL{GFF} file only contains genome posititions with a score $>20$.  The \verb@modifications.csv.gz@ file contains the complete statistics for all sites in the genome.
+
+Here we load the \PL{CSV} file, and merge it with the genomeAnnotations table, keeping only rows containing an identified motif. We can recreate our detection table by cutting on $score>45$. Figure~\ref{fig:lowScores} shows the low end of the score distributions of the matching motif sites. It appears that there is a small population of GATC sites with very low score. We look at the table of hits with score $<10$.  These sites appear to have good coverage, and small ipd ratio. Interestingly, 12 of 16 of these sites are paired, showing no methylation on both strands, which gives us more confidence in their unmethylated status.
+
+<<csv>>=
+# Load CSV file
+if(F)
+  {
+csv <- '/mnt/secondary/Smrtanalysis/userdata/jobs/040/040041/data/modifications.csv.gz'
+rawKin <- read.csv(csv)
+
+rawKin$seqid <- as.integer(substr(rawKin$refId,4,11))
+rawKin$strand[rawKin$strand == 1] <- '-'
+rawKin$strand[rawKin$strand == 0] <- '+'
+mga <- merge(genomeAnnotations, rawKin, by.x=c('start', 'strand'), by.y=c('tpl', 'strand'))
+table(mga$motif, mga$score > 45)
+
+colsToShow <- c('start', 'strand', 'motif', 'score', 'coverage', 'ipdRatio')
+subset(mga, score < 10 & motif=='GATC')[,colsToShow]
+  }
+@
+
+\begin{figure}
+\begin{center}
+<<label=lowScores,fig=TRUE,echo=TRUE>>=
+#p <- qplot(score, ..density.., colour=motif,
+#           log='y', data=mga, 
+#           geom='freqpoly', xlim=c(0,100), binwidth=1)
+#show(p)
+p<-qplot(1,1)
+show(p)
+@
+\end{center}
+\caption{Score distribution of motif sites}
+\label{fig:lowScores}
+\end{figure}
+
+
 
 \appendix
 
