@@ -243,7 +243,7 @@ nrow(workHits)
 In fact our E.Coli sample contains a pair of methyltransferases that methylate reverse-complementary motifs that share a common 4 base sub-motif. MEMEChip reveals that 'GATC', 'GCACNNNNNNGTT', 'AACNNNNNNGTGC' are the fully methylated motifs in our sample.
 
 \section{Genome Annotation}
-We can load the genome sequence and annotate it instances of each motif, to determine the genome-wide methylation fraction of our motifs. The \RFunction{genomeAnnotation} function returns a \PL{data.frame} containing one row for each match in the supplied genome of each motif supplied. Genome positions can match multiple motifs, which gives multiples row at the same genome position
+We can load the genome sequence and then search it for instances of the motifs we have identified. This will let us determine the genome-wide methylation fraction of our motifs, and find instances of motifs that are not methylated. The \RFunction{genomeAnnotation} function scans the genome sequence for instances of the motifs given.  The \RCode{positions} argument indicates which base in the motif sequence is methylated (e.g. base 2 in 'GATC' is the 6mA). \RFunction{genomeAnnotation} returns a \PL{data.frame} containing one row for each match in the supplied genome of each motif supplied. Genome positions can match multiple motifs, which gives multiples row at the same genome position.
 
 <<annotate>>=
 # Load the genome sequence
@@ -259,7 +259,7 @@ head(genomeAnnotations)
 table(genomeAnnotations$motif)
 @
 
-We merge the \RFunction{genomeAnnotation} output with our \PL{GFF} data.frame to count the number of motif instances that exist in the genome and the number that were detected as methylated. We merge the genomeAnnotation and goodHits tables by genome position and strand, with \RCode{all=T} to include GFF hits that are not annotated with a motif, and genome motif instances that do not have a GFF hit. We adjust the merged data.frame to indicate these cases.
+We want to determine which motifs present in the sequence were actually methylated.  We do this by merging the \RFunction{genomeAnnotation} output that gives the location of the motifs in the sequences with the PacBio RS determined methylated bases locations from the \PL{GFF} data.frame. This lets us count the number of motif instances that exist in the genome and the number that were detected as methylated. We use the \RFunction{merge} function to combine the genomeAnnotation and goodHits tables by genome position and strand, with \RCode{all=T} to include methylated bases locations that are not annotated with a sequence motif, and vice-versa. We adjust the merged data.frame to indicate these cases.
 
 <<merge>>=
 goodHits$seqid <- as.integer(substr(goodHits$seqname, 4,11))
