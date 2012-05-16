@@ -218,7 +218,7 @@ workHits <- goodHits
 We use the online motif finding server 'MEMEChip' (\myurl{http://meme.sdsc.edu/meme/cgi-bin/meme-chip.cgi}). The MEMEChip server requires the source sequences to uploaded in \PL{FASTA} format. We write the context string of the top 1000 hits to 'contexts.fasta'. Fill in blurb about how to use the web server.
 
 <<writeFasta>>=
-writeContextFasta(workHits$context[1:1000], 'contexts.fasta')
+writeContextFasta(workHits[1:1000,], 'contexts.fasta')
 @
 
 
